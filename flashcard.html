@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spaced Repetition Flashcard Engine</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap');
+  :root {
+    --primary: #4e94f6;
+    --primary-dark: #3b78e7;
+    --secondary: #f6a11b;
+    --success: #4caf50;
+    --danger: #e74c3c;
+    --bg: #f5f7fa;
+    --card-bg: #fff;
+    --text-primary: #333;
+    --text-secondary: #666;
+    --shadow: rgba(0,0,0,0.1);
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin:0; padding:0;
+    font-family: 'Poppins', sans-serif;
+    background: var(--bg);
+    display:flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    color: var(--text-primary);
+  }
+  header {
+    width: 100%;
+    max-width: 720px;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 6px var(--shadow);
+    background: white;
+    font-weight: 600;
+    font-size: 1.5rem;
+    color: var(--primary);
+    user-select: none;
+  }
+  main {
+    flex: 1 0 auto;
+    max-width: 720px;
+    width: 100%;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .flashcard-container {
+    perspective: 1200px;
+    width: 320px;
+    height: 200px;
+    margin-bottom: 1.2rem;
+    user-select: none;
+  }
+  .flashcard {
+    cursor: pointer;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    box-shadow: 0 6px 16px var(--shadow);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    text-align: center;
+    font-size: 1.3rem;
+    line-height: 1.4;
+    padding: 2rem 1.5rem;
+    box-sizing: border-box;
+    transition: box-shadow 0.3s ease;
+    transform-style: preserve-3d;
+    transform-origin: center;
+    user-select: none;
+  }
+  .flashcard:focus {
+    outline: none;
+    box-shadow: 0 6px 20px var(--primary);
+  }
+  .flashcard.flipped {
+    transform: rotateY(180deg);
+  }
+  .flashcard-front,
+  .flashcard-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    overflow-wrap: break-word;
+    backface-visibility: hidden;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 2rem;
+    box-sizing: border-box;
+  }
+  .flashcard-front {
+    background: var(--card-bg);
+  }
+  .flashcard-back {
+    background: var(--primary);
+    color: white;
+    transform: rotateY(180deg);
+  }
+  .controls {
+    width: 320px;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.2rem;
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: background-color 0.25s ease;
+    box-shadow: 0 3px 8px var(--shadow);
+    user-select:none;
+  }
+  button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--secondary);
+  }
+  button.repeat {
+    background: var(--danger);
+    color: white;
+  }
+  button.easy {
+    background: var(--success);
+    color: white;
+  }
+  button.good {
+    background: var(--secondary);
+    color: white;
+  }
+  button:disabled {
+    background: #ccc;
+    cursor: default;
+    box-shadow: none;
+    color: #666;
+  }
+  .progress-bar-container {
+    width: 320px;
+    height: 14px;
+    background: #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1.2rem;
+    box-shadow: inset 0 1px 4px #bbb;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--primary);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+  .stats {
+    width: 320px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 6px 16px var(--shadow);
+    padding: 1rem 1.2rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    user-select:none;
+  }
+  .stats strong {
+    color: var(--primary-dark);
+  }
+  footer {
+    margin: 1rem 0 2rem 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    user-select:none;
+  }
+  @media (max-width: 380px) {
+    .flashcard-container, .controls, .progress-bar-container, .stats {
+      width: 90vw;
+    }
+  }
+</style>
+</head>
+<body>
+<header>Spaced Repetition Flashcards</header>
+<main>
+  <div class="flashcard-container" tabindex="0" aria-label="Flashcard. Press to flip or use buttons below.">
+    <div id="flashcard" class="flashcard" role="button" aria-pressed="false" tabindex="0" aria-live="polite">
+      <div class="flashcard-front"></div>
+      <div class="flashcard-back"></div>
+    </div>
+  </div>
+  <div class="controls" role="group" aria-label="Flashcard response buttons">
+    <button class="repeat" aria-label="Mark as Repeat">Repeat</button>
+    <button class="good" aria-label="Mark as Good">Good</button>
+    <button class="easy" aria-label="Mark as Easy">Easy</button>
+  </div>
+  <div class="progress-bar-container" aria-label="Review progress">
+    <div class="progress-bar"></div>
+  </div>
+  <div class="stats" aria-live="polite" aria-atomic="true" aria-relevant="text">
+    <div>Cards reviewed: <strong id="cardsReviewed">0</strong> / <strong id="totalCards">0</strong></div>
+    <div>Accuracy: <strong id="accuracyPercent">0%</strong></div>
+    <div>Next review in: <strong id="nextReview">-</strong></div>
+  </div>
+</main>
+<footer> Spaced Repetition Flashcards </footer>
+<script>
+(() => {
+  const STORAGE_KEY = 'sr-flashcards-data-v1';
+
+  // Sample flashcards (could be extended or imported later)
+  const defaultCards = [
+    { id: 1, question: "What is the capital of France?", answer: "Paris" },
+    { id: 2, question: "Who wrote '1984'?", answer: "George Orwell" },
+    { id: 3, question: "What is the powerhouse of the cell?", answer: "Mitochondria" },
+    { id: 4, question: "What is the formula for water?", answer: "H2O" },
+    { id: 5, question: "Who painted the Mona Lisa?", answer: "Leonardo da Vinci" },
+  ];
+
+  // Spaced repetition intervals in days (common base intervals)
+  const intervals = [1, 3, 7, 14, 30, 60, 120];
+
+  // State variables
+  let cards = [];
+  let reviewQueue = [];
+  let reviewedCount = 0;
+  let correctCount = 0;
+  let currentCardIndex = 0;
+  let flipped = false;
+
+  // DOM elements
+  const flashcardEl = document.getElementById('flashcard');
+  const frontEl = flashcardEl.querySelector('.flashcard-front');
+  const backEl = flashcardEl.querySelector('.flashcard-back');
+  const repeatBtn = document.querySelector('button.repeat');
+  const goodBtn = document.querySelector('button.good');
+  const easyBtn = document.querySelector('button.easy');
+  const progressBar = document.querySelector('.progress-bar');
+  const cardsReviewedEl = document.getElementById('cardsReviewed');
+  const totalCardsEl = document.getElementById('totalCards');
+  const accuracyPercentEl = document.getElementById('accuracyPercent');
+  const nextReviewEl = document.getElementById('nextReview');
+  const flashcardContainer = document.querySelector('.flashcard-container');
+
+  // Utility: format milliseconds to human readable time for next review
+  function formatTimeDiff(diffMs) {
+    if (diffMs <= 0) return 'now';
+    const seconds = Math.floor(diffMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    if (days > 1) return days + ' days';
+    if (days === 1) return '1 day';
+    if (hours > 1) return hours + ' hours';
+    if (hours === 1) return '1 hour';
+    if (minutes > 1) return minutes + ' minutes';
+    if (minutes === 1) return '1 minute';
+    return 'seconds';
+  }
+
+  // Load cards from localStorage or initialize defaults
+  function loadCards() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch (e) {
+        console.warn('Failed to parse stored cards, using defaults');
+      }
+    }
+    // Initialize with default cards and spaced repetition fields
+    return defaultCards.map(card => ({
+      ...card,
+      intervalIndex: 0,   // current interval index
+      dueDate: Date.now(), // timestamp when card is due for review
+      reviewCount: 0,
+      correctCount: 0,
+      lastReviewed: null,
+    }));
+  }
+
+  // Save cards to localStorage
+  function saveCards() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+  }
+
+  // Prepare review queue for cards due now or earlier
+  function prepareReviewQueue() {
+    const now = Date.now();
+    reviewQueue = cards.filter(card => card.dueDate <= now);
+    // Sort by dueDate ascending
+    reviewQueue.sort((a,b) => a.dueDate - b.dueDate);
+    currentCardIndex = 0;
+    reviewedCount = 0;
+    correctCount = 0;
+  }
+
+  // Show card question or answer depending on flipped state
+  function renderCard() {
+    if (!reviewQueue.length) {
+      frontEl.textContent = "🎉 No cards due for review now! Come back soon.";
+      backEl.textContent = "";
+      flashcardEl.classList.remove('flipped');
+      flipped = false;
+      disableButtons(true);
+      updateProgressBar();
+      updateStats();
+      return;
+    }
+    const card = reviewQueue[currentCardIndex];
+    if (flipped) {
+      frontEl.textContent = "";
+      backEl.textContent = card.answer;
+      flashcardEl.classList.add('flipped');
+      flashcardEl.setAttribute('aria-pressed', 'true');
+    } else {
+      frontEl.textContent = card.question;
+      backEl.textContent = "";
+      flashcardEl.classList.remove('flipped');
+      flashcardEl.setAttribute('aria-pressed', 'false');
+    }
+    disableButtons(false);
+    updateProgressBar();
+    updateStats();
+  }
+
+  // Disable or enable buttons
+  function disableButtons(isDisabled) {
+    repeatBtn.disabled = isDisabled;
+    goodBtn.disabled = isDisabled;
+    easyBtn.disabled = isDisabled;
+  }
+
+  // Update progress bar and count stats
+  function updateProgressBar() {
+    if (reviewQueue.length === 0) {
+      progressBar.style.width = '0%';
+      return;
+    }
+    const progress = (currentCardIndex / reviewQueue.length) * 100;
+    progressBar.style.width = progress + '%';
+  }
+
+  // Update review stats display
+  function updateStats() {
+    cardsReviewedEl.textContent = reviewedCount;
+    totalCardsEl.textContent = reviewQueue.length;
+    let accuracy = reviewedCount ? Math.round((correctCount / reviewedCount) * 100) : 0;
+    accuracyPercentEl.textContent = accuracy + '%';
+
+    // Next review time is earliest dueDate from cards not due now
+    const now = Date.now();
+    const futureCards = cards.filter(card => card.dueDate > now);
+    if (!futureCards.length) {
+      nextReviewEl.textContent = '-';
+    } else {
+      const nearestDue = futureCards.reduce((acc, c) => c.dueDate < acc ? c.dueDate : acc, futureCards[0].dueDate);
+      let diffMs = nearestDue - now;
+      nextReviewEl.textContent = formatTimeDiff(diffMs);
+    }
+  }
+
+  // Handle user marking current card with quality of recall
+  // quality: 0=Repeat, 1=Good, 2=Easy
+  function markCard(quality) {
+    if (!reviewQueue.length) return;
+
+    const card = reviewQueue[currentCardIndex];
+    reviewedCount++;
+    if (quality > 0) {
+      correctCount++;
+    }
+
+    // Update spaced repetition intervals based on quality
+    if (quality === 0) {
+      // Repeat immediately: reset interval index to 0, due date now + 1 min buffer
+      card.intervalIndex = 0;
+      card.dueDate = Date.now() + 60000;
+    } else if (quality === 1) {
+      // Good: advance interval by 1, max capped
+      card.intervalIndex = Math.min(card.intervalIndex + 1, intervals.length - 1);
+      card.dueDate = Date.now() + intervals[card.intervalIndex] * 24 * 60 * 60 * 1000;
+    } else if (quality === 2) {
+      // Easy: advance interval by 2, max capped
+      card.intervalIndex = Math.min(card.intervalIndex + 2, intervals.length - 1);
+      card.dueDate = Date.now() + intervals[card.intervalIndex] * 24 * 60 * 60 * 1000;
+    }
+
+    card.reviewCount++;
+    card.lastReviewed = Date.now();
+
+    // Save updates
+    saveCards();
+
+    // Prepare next card
+    currentCardIndex++;
+    flipped = false;
+    if (currentCardIndex >= reviewQueue.length) {
+      // Review done, refresh queue
+      prepareReviewQueue();
+    }
+    renderCard();
+  }
+
+  // Event listeners
+  flashcardEl.addEventListener('click', () => {
+    if (reviewQueue.length === 0) return;
+    flipped = !flipped;
+    renderCard();
+  });
+  flashcardEl.addEventListener('keydown', e => {
+    if (reviewQueue.length === 0) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      flipped = !flipped;
+      renderCard();
+    }
+  });
+
+  repeatBtn.addEventListener('click', () => markCard(0));
+  goodBtn.addEventListener('click', () => markCard(1));
+  easyBtn.addEventListener('click', () => markCard(2));
+
+  // Keyboard shortcuts for accessibility
+  document.addEventListener('keydown', e => {
+    if (reviewQueue.length === 0) return;
+    if (document.activeElement === flashcardEl || document.activeElement === flashcardContainer) {
+      if (e.key === 'ArrowLeft') {
+        markCard(0);
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        markCard(1);
+      } else if (e.key === 'ArrowUp') {
+        markCard(2);
+      }
+    }
+  });
+
+  // Initialization
+  function init() {
+    cards = loadCards();
+    prepareReviewQueue();
+    renderCard();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
+
